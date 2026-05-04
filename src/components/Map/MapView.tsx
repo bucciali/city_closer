@@ -1,7 +1,8 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useEffect } from 'react'
-import type { Kiosk, POI, Route } from '../../types'
+import type { Kiosk, POI, POICategory, Route } from '../../types'
+import { CATEGORY_ICONS, DEFAULT_POI_ICON } from '../../data/mockData'
 import styles from './MapView.module.css'
 
 // Fix default icon paths broken by bundlers
@@ -31,13 +32,15 @@ const kioskIcon = L.divIcon({
   iconAnchor: [14, 14],
 })
 
-const poiIcon = (emoji: string) =>
-  L.divIcon({
+function poiIcon(category: POICategory | undefined) {
+  const svg = (category && CATEGORY_ICONS[category]) || DEFAULT_POI_ICON
+  return L.divIcon({
     className: '',
-    html: `<div class="poi-marker">${emoji}</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+    html: `<div class="poi-marker">${svg}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   })
+}
 
 interface FlyToProps {
   center: [number, number]
@@ -67,7 +70,6 @@ interface MapViewProps {
   selectedKioskId: string | null
   onKioskClick: (id: string) => void
   onPOIClick: (id: string) => void
-  categoryIcons: Record<string, string>
 }
 
 export function MapView({
@@ -78,7 +80,6 @@ export function MapView({
   selectedKioskId,
   onKioskClick,
   onPOIClick,
-  categoryIcons,
 }: MapViewProps) {
   const currentKiosk = kiosks.find((k) => k.id === currentKioskId)
   const center: [number, number] = currentKiosk
@@ -117,9 +118,12 @@ export function MapView({
           >
             <Popup className={styles.popup}>
               <strong>{kiosk.name}</strong>
-              <br />
-              <span>{kiosk.district}</span>
-              {!kiosk.isOnline && <span className={styles.offline}> · офлайн</span>}
+              {kiosk.description && (
+                <>
+                  <br />
+                  <span>{kiosk.description}</span>
+                </>
+              )}
             </Popup>
           </Marker>
         ))}
@@ -129,7 +133,7 @@ export function MapView({
           <Marker
             key={poi.id}
             position={[poi.position.lat, poi.position.lng]}
-            icon={poiIcon(categoryIcons[poi.category] ?? '?')}
+            icon={poiIcon(poi.category)}
             eventHandlers={{ click: () => onPOIClick(poi.id) }}
           >
             <Popup className={styles.popup}>

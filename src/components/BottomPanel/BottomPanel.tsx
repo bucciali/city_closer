@@ -18,6 +18,7 @@ interface BottomPanelProps {
   onPOISelect: (id: string) => void
   activeRoute: Route | null
   onBuildRoute: (points: RoutePoint[]) => void
+  onBuildRouteToPOI: (poi: POI) => void
   onClearRoute: () => void
   isBuilding: boolean
 }
@@ -60,6 +61,7 @@ export function BottomPanel({
   onPOISelect,
   activeRoute,
   onBuildRoute,
+  onBuildRouteToPOI,
   onClearRoute,
   isBuilding,
 }: BottomPanelProps) {
@@ -102,12 +104,19 @@ export function BottomPanel({
       {/* Tab content */}
       <div className={styles.content}>
         {activeTab === 'nearby' && (
-          <NearbyTab pois={pois} selectedPOIId={selectedPOIId} onPOISelect={onPOISelect} />
+          <NearbyTab
+            pois={pois}
+            selectedPOIId={selectedPOIId}
+            onPOISelect={onPOISelect}
+            onBuildRouteToPOI={onBuildRouteToPOI}
+            isBuilding={isBuilding}
+          />
         )}
         {activeTab === 'route' && (
           <RouteTab
             kiosks={kiosks}
             currentKioskId={currentKioskId}
+            activeRoute={activeRoute}
             onBuildRoute={onBuildRoute}
             onClearRoute={onClearRoute}
             isBuilding={isBuilding}
@@ -115,9 +124,6 @@ export function BottomPanel({
         )}
         {activeTab === 'search' && (
           <SearchTab
-            kiosks={kiosks}
-            pois={pois}
-            currentKioskId={currentKioskId}
             onKioskSelect={onKioskSelect}
             onPOISelect={onPOISelect}
           />

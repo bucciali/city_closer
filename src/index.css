@@ -110,20 +110,22 @@ body {
 }
 
 .poi-marker {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   background: var(--nav);
   color: #fff;
-  font-family: var(--font);
-  font-size: 11px;
-  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 8px rgba(0 0 0 / 0.35);
-  letter-spacing: 0;
+}
+
+.poi-marker svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 /* ── Leaflet popup ──────────────────────────────────────────────────────── */

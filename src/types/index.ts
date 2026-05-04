@@ -7,29 +7,27 @@ export interface Kiosk {
   id: string
   name: string
   position: LatLng
-  district: string
-  isOnline: boolean
+  description: string
 }
 
 export interface POI {
   id: string
   name: string
-  category: POICategory
   position: LatLng
   description: string
-  distance?: number // meters from current kiosk
+  category?: POICategory
+  distance?: number
   imageUrl?: string
-  tags: string[]
+  tags?: string[]
 }
 
 export type POICategory =
-  | 'attraction'
-  | 'museum'
-  | 'park'
-  | 'restaurant'
+  | 'shop'
   | 'transport'
-  | 'shopping'
-  | 'hotel'
+  | 'cafe'
+  | 'pharmacy'
+  | 'park'
+  | 'other'
 
 export interface RoutePoint {
   kioskId: string
@@ -41,22 +39,15 @@ export interface RoutePoint {
 export interface Route {
   id: string
   points: RoutePoint[]
-  totalDistance: number // meters
-  estimatedTime: number // minutes
-  segments?: LatLng[][] // path geometry from routing API
+  totalDistance: number
+  estimatedTime: number
+  segments?: LatLng[][]
 }
 
 export interface SearchResult {
   id: string
   name: string
   type: 'kiosk' | 'poi'
-  position: LatLng
+  position?: LatLng
   description?: string
-}
-
-// API response shapes — will be filled by Go/Python backends
-export interface ApiResponse<T> {
-  data: T
-  status: 'ok' | 'error'
-  message?: string
 }

@@ -1,36 +1,56 @@
-import { useState } from 'react'
-import type { Kiosk, POI } from '../../types'
+import { useEffect, useState } from 'react'
+import { searchService } from '../../services/api'
+import type { SearchResult } from '../../types'
 import styles from './Panel.module.css'
 
 interface SearchTabProps {
-  kiosks: Kiosk[]
-  pois: POI[]
   onKioskSelect: (id: string) => void
   onPOISelect: (id: string) => void
-  currentKioskId: string
 }
 
-export function SearchTab({ kiosks, pois, onKioskSelect, onPOISelect, currentKioskId }: SearchTabProps) {
+const DEBOUNCE_MS = 300
+
+export function SearchTab({ onKioskSelect, onPOISelect }: SearchTabProps) {
   const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const q = query.toLowerCase()
-  const filteredKiosks = q
-    ? kiosks.filter(
-        (k) =>
-          k.id !== currentKioskId &&
-          (k.name.toLowerCase().includes(q) || k.district.toLowerCase().includes(q))
-      )
-    : []
-  const filteredPOIs = q
-    ? pois.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.toLowerCase().includes(q))
-      )
-    : []
+  useEffect(() => {
+    const q = query.trim()
+    if (!q) {
+      setResults([])
+      setError(null)
+      setLoading(false)
+      return
+    }
 
-  const hasResults = filteredKiosks.length > 0 || filteredPOIs.length > 0
+    setLoading(true)
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const r = await searchService.query(q)
+        if (cancelled) return
+        setResults(r)
+        setError(null)
+      } catch (e) {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : 'Ошибка поиска')
+        setResults([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }, DEBOUNCE_MS)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [query])
+
+  const kioskHits = results.filter((r) => r.type === 'kiosk')
+  const poiHits = results.filter((r) => r.type === 'poi')
+  const hasResults = results.length > 0
 
   return (
     <div className={styles.tabContent}>
@@ -58,15 +78,19 @@ export function SearchTab({ kiosks, pois, onKioskSelect, onPOISelect, currentKio
         <p className={styles.hint}>Введите название места или достопримечательности</p>
       )}
 
-      {query && !hasResults && (
+      {query && loading && <p className={styles.hint}>Поиск…</p>}
+
+      {query && !loading && error && <p className={styles.hint}>{error}</p>}
+
+      {query && !loading && !error && !hasResults && (
         <p className={styles.hint}>Ничего не найдено по запросу «{query}»</p>
       )}
 
-      {filteredKiosks.length > 0 && (
+      {kioskHits.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Киоски</div>
-          {filteredKiosks.map((k) => (
-            <button key={k.id} className={styles.resultRow} onClick={() => onKioskSelect(k.id)}>
+          {kioskHits.map((k) => (
+            <button key={`kiosk-${k.id}`} className={styles.resultRow} onClick={() => onKioskSelect(k.id)}>
               <span className={styles.resultIcon}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="2.5" y="2.5" width="13" height="13" rx="2.5"/>
@@ -75,19 +99,18 @@ export function SearchTab({ kiosks, pois, onKioskSelect, onPOISelect, currentKio
               </span>
               <div className={styles.resultInfo}>
                 <span className={styles.resultName}>{k.name}</span>
-                <span className={styles.resultSub}>{k.district}</span>
+                {k.description && <span className={styles.resultSub}>{k.description}</span>}
               </div>
-              {!k.isOnline && <span className={styles.offlineBadge}>офлайн</span>}
             </button>
           ))}
         </div>
       )}
 
-      {filteredPOIs.length > 0 && (
+      {poiHits.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Места</div>
-          {filteredPOIs.map((p) => (
-            <button key={p.id} className={styles.resultRow} onClick={() => onPOISelect(p.id)}>
+          {poiHits.map((p) => (
+            <button key={`poi-${p.id}`} className={styles.resultRow} onClick={() => onPOISelect(p.id)}>
               <span className={styles.resultIcon}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="9" cy="7" r="2.5"/>
@@ -96,11 +119,8 @@ export function SearchTab({ kiosks, pois, onKioskSelect, onPOISelect, currentKio
               </span>
               <div className={styles.resultInfo}>
                 <span className={styles.resultName}>{p.name}</span>
-                <span className={styles.resultSub}>{p.description}</span>
+                {p.description && <span className={styles.resultSub}>{p.description}</span>}
               </div>
-              {p.distance != null && (
-                <span className={styles.distanceBadge}>{(p.distance / 1000).toFixed(1)} км</span>
-              )}
             </button>
           ))}
         </div>

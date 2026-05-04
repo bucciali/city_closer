@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import type { Kiosk, RoutePoint } from '../../types'
+import type { Kiosk, Route, RoutePoint } from '../../types'
 import styles from './Panel.module.css'
 
 interface RouteTabProps {
   kiosks: Kiosk[]
   currentKioskId: string
+  activeRoute: Route | null
   onBuildRoute: (points: RoutePoint[]) => void
   onClearRoute: () => void
   isBuilding: boolean
@@ -13,6 +14,7 @@ interface RouteTabProps {
 export function RouteTab({
   kiosks,
   currentKioskId,
+  activeRoute,
   onBuildRoute,
   onClearRoute,
   isBuilding,
@@ -24,7 +26,7 @@ export function RouteTab({
 
   function toggle(id: string) {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   }
 
@@ -45,7 +47,6 @@ export function RouteTab({
 
   return (
     <div className={styles.tabContent}>
-      {/* Start point */}
       <div className={styles.routeStartBlock}>
         <div className={styles.routeStepDot} data-type="start" />
         <div className={styles.routeStepInfo}>
@@ -57,7 +58,6 @@ export function RouteTab({
 
       <div className={styles.routeDivider} />
 
-      {/* Kiosk selection */}
       <div className={styles.sectionLabel}>Добавить точки маршрута</div>
       <div className={styles.kioskPickerList}>
         {otherKiosks.map((k) => {
@@ -66,15 +66,19 @@ export function RouteTab({
           return (
             <button
               key={k.id}
-              className={`${styles.kioskPickerItem} ${selected ? styles.kioskPickerItemSelected : ''} ${!k.isOnline ? styles.kioskPickerItemOffline : ''}`}
+              className={`${styles.kioskPickerItem} ${selected ? styles.kioskPickerItemSelected : ''}`}
               onClick={() => toggle(k.id)}
             >
               <div className={styles.kioskPickerCheck}>
-                {selected ? <span className={styles.orderBadge}>{order + 1}</span> : <span className={styles.unchecked} />}
+                {selected ? (
+                  <span className={styles.orderBadge}>{order + 1}</span>
+                ) : (
+                  <span className={styles.unchecked} />
+                )}
               </div>
               <div className={styles.kioskPickerInfo}>
                 <span className={styles.kioskPickerName}>{k.name}</span>
-                <span className={styles.kioskPickerSub}>{k.district}{!k.isOnline ? ' · офлайн' : ''}</span>
+                <span className={styles.kioskPickerSub}>{k.description}</span>
               </div>
               <span className={styles.kioskPickerIcon}>›</span>
             </button>
@@ -82,7 +86,6 @@ export function RouteTab({
         })}
       </div>
 
-      {/* Actions */}
       <div className={styles.routeActions}>
         <button
           className={styles.buildBtn}
@@ -91,6 +94,27 @@ export function RouteTab({
         >
           {isBuilding ? 'Строим...' : `Построить маршрут${selectedIds.length > 0 ? ` (${selectedIds.length + 1})` : ''}`}
         </button>
+
+        {activeRoute && !isBuilding && (
+          <div className={styles.routeStats}>
+            <div className={styles.routeStat}>
+              <span className={styles.routeStatLabel}>Дистанция</span>
+              <span className={styles.routeStatValue}>
+                {activeRoute.totalDistance >= 1000
+                  ? `${(activeRoute.totalDistance / 1000).toFixed(1)} км`
+                  : `${Math.round(activeRoute.totalDistance)} м`}
+              </span>
+            </div>
+            <div className={styles.routeStatDivider} />
+            <div className={styles.routeStat}>
+              <span className={styles.routeStatLabel}>Время</span>
+              <span className={styles.routeStatValue}>
+                ~{activeRoute.estimatedTime} мин
+              </span>
+            </div>
+          </div>
+        )}
+
         {selectedIds.length > 0 && (
           <button className={styles.clearBtn2} onClick={handleClear}>
             Очистить

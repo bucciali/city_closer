@@ -1,113 +1,23 @@
-/**
- * Sprint 1 mock data — removed once Go/Python APIs are live.
- */
+import type { POICategory } from '../types'
 
-import type { Kiosk, POI } from '../types'
-
-export const CURRENT_KIOSK_ID = 'kiosk-01'
-
-export const MOCK_KIOSKS: Kiosk[] = [
-  {
-    id: 'kiosk-01',
-    name: 'Красная площадь',
-    district: 'Центр',
-    position: { lat: 55.7539, lng: 37.6208 },
-    isOnline: true,
-  },
-  {
-    id: 'kiosk-02',
-    name: 'Арбат',
-    district: 'Центр',
-    position: { lat: 55.7494, lng: 37.5943 },
-    isOnline: true,
-  },
-  {
-    id: 'kiosk-03',
-    name: 'Парк Горького',
-    district: 'Центр',
-    position: { lat: 55.7297, lng: 37.6011 },
-    isOnline: true,
-  },
-  {
-    id: 'kiosk-04',
-    name: 'ВДНХ',
-    district: 'Север',
-    position: { lat: 55.8264, lng: 37.6402 },
-    isOnline: false,
-  },
-  {
-    id: 'kiosk-05',
-    name: 'Воробьёвы горы',
-    district: 'Запад',
-    position: { lat: 55.7082, lng: 37.5588 },
-    isOnline: true,
-  },
-]
-
-export const MOCK_POIS: POI[] = [
-  {
-    id: 'poi-01',
-    name: 'Кремль',
-    category: 'attraction',
-    position: { lat: 55.752, lng: 37.6174 },
-    description: 'Главная крепость страны, символ Москвы',
-    distance: 350,
-    tags: ['история', 'архитектура', 'UNESCO'],
-  },
-  {
-    id: 'poi-02',
-    name: 'ГУМ',
-    category: 'shopping',
-    position: { lat: 55.7546, lng: 37.6218 },
-    description: 'Исторический торговый центр',
-    distance: 120,
-    tags: ['шопинг', 'история'],
-  },
-  {
-    id: 'poi-03',
-    name: 'Исторический музей',
-    category: 'museum',
-    position: { lat: 55.7553, lng: 37.6177 },
-    description: 'Крупнейший исторический музей России',
-    distance: 280,
-    tags: ['музей', 'история', 'культура'],
-  },
-  {
-    id: 'poi-04',
-    name: 'Александровский сад',
-    category: 'park',
-    position: { lat: 55.752, lng: 37.6115 },
-    description: 'Городской парк у стен Кремля',
-    distance: 420,
-    tags: ['парк', 'прогулка'],
-  },
-  {
-    id: 'poi-05',
-    name: 'Храм Василия Блаженного',
-    category: 'attraction',
-    position: { lat: 55.7525, lng: 37.6231 },
-    description: 'Собор XVI века — визитная карточка Москвы',
-    distance: 180,
-    tags: ['история', 'архитектура', 'религия', 'UNESCO'],
-  },
-]
-
-export const CATEGORY_LABELS: Record<POI['category'], string> = {
-  attraction: 'Достопримечательность',
-  museum: 'Музей',
-  park: 'Парк',
-  restaurant: 'Ресторан',
+export const CATEGORY_LABELS: Record<POICategory, string> = {
+  shop: 'Магазин',
   transport: 'Транспорт',
-  shopping: 'Шопинг',
-  hotel: 'Отель',
+  cafe: 'Кафе',
+  pharmacy: 'Аптека',
+  park: 'Парк',
+  other: 'Место',
 }
 
-export const CATEGORY_ICONS: Record<POI['category'], string> = {
-  attraction: 'Д',
-  museum: 'М',
-  park: 'П',
-  restaurant: 'Р',
-  transport: 'Т',
-  shopping: 'Ш',
-  hotel: 'О',
+const stroke = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"'
+
+export const CATEGORY_ICONS: Record<POICategory, string> = {
+  shop: `<svg viewBox="0 0 24 24" ${stroke}><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`,
+  transport: `<svg viewBox="0 0 24 24" ${stroke}><rect x="6" y="4" width="12" height="13" rx="2"/><path d="M6 13h12"/><circle cx="9" cy="15.5" r="0.7" fill="currentColor" stroke="none"/><circle cx="15" cy="15.5" r="0.7" fill="currentColor" stroke="none"/><path d="M9 17l-1.5 3M15 17l1.5 3"/></svg>`,
+  cafe: `<svg viewBox="0 0 24 24" ${stroke}><path d="M5 8h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 5v-1M11 5v-1"/></svg>`,
+  pharmacy: `<svg viewBox="0 0 24 24" ${stroke}><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>`,
+  park: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 4l5 8h-3l3 5H7l3-5H7z"/><path d="M12 17v3"/></svg>`,
+  other: `<svg viewBox="0 0 24 24" ${stroke}><circle cx="12" cy="10" r="3"/><path d="M12 13v8"/></svg>`,
 }
+
+export const DEFAULT_POI_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="10" y="10" width="4" height="4"/></svg>`

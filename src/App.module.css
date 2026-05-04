@@ -12,3 +12,14 @@
   min-height: 0;
   position: relative;
 }
+
+.statusScreen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 17px;
+  text-align: center;
+}
