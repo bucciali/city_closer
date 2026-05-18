@@ -16,10 +16,34 @@
 .statusScreen {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: 20px;
   align-items: center;
   justify-content: center;
   padding: 32px;
   color: var(--text-muted);
   font-size: 17px;
   text-align: center;
+}
+
+.statusText {
+  margin: 0;
+  max-width: 520px;
+}
+
+.retryBtn {
+  padding: 14px 28px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent, #2563eb);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 52px;
+  min-width: 200px;
+}
+
+.retryBtn:active {
+  opacity: 0.85;
 }

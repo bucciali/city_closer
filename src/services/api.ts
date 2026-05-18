@@ -11,18 +11,51 @@ const PY_API = '/routing/v1'
 
 // ── HTTP ────────────────────────────────────────────────────────────────────
 
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url)
+const DEFAULT_TIMEOUT_MS = 8_000
+
+/**
+ * fetch с жёстким таймаутом через AbortController.
+ * Зависший бэкенд на киоске не должен означать вечный спиннер.
+ */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(`Таймаут запроса (${timeoutMs} мс): ${url}`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function getJSON<T>(url: string, timeoutMs?: number): Promise<T> {
+  const res = await fetchWithTimeout(url, {}, timeoutMs)
   if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`)
   return res.json() as Promise<T>
 }
 
-async function postJSON<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+async function postJSON<T>(
+  url: string,
+  body: unknown,
+  timeoutMs?: number,
+): Promise<T> {
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    timeoutMs,
+  )
   if (!res.ok) {
     let detail = ''
     try { detail = (await res.json())?.detail ?? '' } catch { /* ignore */ }
@@ -160,23 +193,25 @@ export async function fetchPOIImage(name: string): Promise<string | null> {
   const cache = readImgCache()
   if (name in cache) return cache[name]
 
+  // Внешний запрос (Wikipedia) — короткий таймаут + негатив-кэш:
+  // офлайн-киоск не должен висеть и долбить сеть на каждом рендере.
+  let url: string | null = null
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://ru.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`,
+      {},
+      5_000,
     )
-    if (!res.ok) {
-      cache[name] = null
-      writeImgCache(cache)
-      return null
+    if (res.ok) {
+      const data = await res.json()
+      url = data?.thumbnail?.source ?? null
     }
-    const data = await res.json()
-    const url: string | null = data?.thumbnail?.source ?? null
-    cache[name] = url
-    writeImgCache(cache)
-    return url
   } catch {
-    return null
+    url = null
   }
+  cache[name] = url
+  writeImgCache(cache)
+  return url
 }
 
 export const routingService = {
@@ -185,9 +220,12 @@ export const routingService = {
     points: RoutePoint[],
   ): Promise<Route> => {
     if (waypoints.length < 2) throw new Error('need at least 2 waypoints')
-    const geo = await postJSON<RouteGeoJSON>(`${PY_API}/route`, {
-      waypoints: waypoints.map((p) => ({ lat: p.lat, lng: p.lng })),
-    })
+    // Маршрутизация по реальному графу — тяжёлый запрос, даём больше времени.
+    const geo = await postJSON<RouteGeoJSON>(
+      `${PY_API}/route`,
+      { waypoints: waypoints.map((p) => ({ lat: p.lat, lng: p.lng })) },
+      30_000,
+    )
     const segment: LatLng[] = geo.geometry.coordinates.map(([lng, lat]) => ({ lat, lng }))
     return {
       id: `route-${Date.now()}`,

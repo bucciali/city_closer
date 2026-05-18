@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Header } from './components/Header/Header'
 import { BottomPanel } from './components/BottomPanel/BottomPanel'
 import { MapView } from './components/Map/MapView'
@@ -36,6 +36,16 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Авто-retry: при старте киоска бэкенд может быть ещё не готов.
+  // reloadKey бампается (вручную или по таймеру) → эффект перезапускается.
+  const [reloadKey, setReloadKey] = useState(0)
+  const attemptRef = useRef(0)
+
+  function retryNow() {
+    attemptRef.current = 0
+    setReloadKey((k) => k + 1)
+  }
+
   useEffect(() => {
     if (!CURRENT_KIOSK_ID) {
       setError('VITE_KIOSK_ID не задан в .env')
@@ -44,7 +54,11 @@ export default function App() {
     }
 
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+
     ;(async () => {
+      setLoading(true)
+      setError(null)
       try {
         const allKiosks = await kioskService.getAll()
         if (cancelled) return
@@ -68,6 +82,7 @@ export default function App() {
           distance: haversineMeters(me.position, p.position),
         }))
 
+        attemptRef.current = 0
         setKiosks(allKiosks)
         setPois(withDistance)
         setLoading(false)
@@ -83,15 +98,25 @@ export default function App() {
         })
       } catch (e) {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Ошибка загрузки данных')
+        attemptRef.current += 1
+        const msg = e instanceof Error ? e.message : 'Ошибка загрузки данных'
+        // Backoff: 3с, 6с, 9с … но не дольше 20с между попытками.
+        const delay = Math.min(3_000 * attemptRef.current, 20_000)
+        setError(
+          `${msg} · автоповтор через ${Math.round(delay / 1000)} с (попытка ${attemptRef.current})`,
+        )
         setLoading(false)
+        retryTimer = setTimeout(() => {
+          if (!cancelled) setReloadKey((k) => k + 1)
+        }, delay)
       }
     })()
 
     return () => {
       cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [])
+  }, [reloadKey])
 
   const currentKiosk = CURRENT_KIOSK_ID
     ? kiosks.find((k) => k.id === CURRENT_KIOSK_ID) ?? null
@@ -145,7 +170,12 @@ export default function App() {
     return (
       <div className={styles.app}>
         <div className={styles.statusScreen}>
-          {error ?? 'Текущий киоск недоступен'}
+          <p className={styles.statusText}>
+            {error ?? 'Текущий киоск недоступен'}
+          </p>
+          <button className={styles.retryBtn} onClick={retryNow}>
+            Повторить сейчас
+          </button>
         </div>
       </div>
     )

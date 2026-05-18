@@ -23,6 +23,30 @@ const FILTERS: { value: FilterCategory; label: string }[] = [
   { value: 'other', label: 'Другое' },
 ]
 
+/**
+ * Картинка POI с фолбэком на иконку категории.
+ * Если URL битый или заблокирован (офлайн-киоск) — onError → иконка.
+ */
+function PoiThumb({ src, iconSvg }: { src?: string; iconSvg: string }) {
+  const [failed, setFailed] = useState(false)
+  // Новый src (фон-обогащение / рефреш данных) — сбрасываем флаг,
+  // иначе залипший failed навсегда подменяет валидную картинку иконкой.
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+  return <span dangerouslySetInnerHTML={{ __html: iconSvg }} />
+}
+
 export function NearbyTab({
   pois,
   selectedPOIId,
@@ -84,11 +108,7 @@ export function NearbyTab({
                 onClick={() => onPOISelect(poi.id)}
               >
                 <div className={styles.poiImage}>
-                  {poi.imageUrl ? (
-                    <img src={poi.imageUrl} alt="" loading="lazy" />
-                  ) : (
-                    <span dangerouslySetInnerHTML={{ __html: iconSvg }} />
-                  )}
+                  <PoiThumb src={poi.imageUrl} iconSvg={iconSvg} />
                 </div>
                 <div className={styles.poiBody}>
                   <div className={styles.poiName}>{poi.name}</div>
