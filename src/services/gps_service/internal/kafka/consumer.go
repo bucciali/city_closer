@@ -14,11 +14,12 @@ type Consumer struct {
 
 func NewConsumer(brokers []string, topic string, groupID string) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  brokers,
-		Topic:    topic,
-		GroupID:  groupID,
-		MinBytes: 10e3,
-		MaxBytes: 10e6,
+		Brokers:     brokers,
+		Topic:       topic,
+		GroupID:     groupID,
+		MinBytes:    10e3,
+		MaxBytes:    10e6,
+		StartOffset: kafka.FirstOffset,
 	})
 	return &Consumer{reader: r}
 }

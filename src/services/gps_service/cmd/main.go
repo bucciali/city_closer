@@ -8,6 +8,8 @@ import (
 	"gps_service/internal/cache"
 	"gps_service/internal/config"
 	"gps_service/internal/db"
+	"gps_service/internal/handlers"
+	"gps_service/internal/kafka"
 	"gps_service/internal/middleware"
 	"gps_service/internal/router"
 	"log"
@@ -46,6 +48,22 @@ func main() {
 
 	pointsCache := cache.NewPointsCache(rdb)
 	kiosksCache := cache.NewKioskCache(rdb)
+	kafkaProducer := kafka.NewProducer([]string{"kafka:9092"}, "points-events")
+	defer kafkaProducer.Close()
+	log.Println("Kafka Producer connected")
+	time.Sleep(5 * time.Second)
+	go func() {
+		consumer := kafka.NewConsumer([]string{"kafka:9092"}, "points-events", "gps-service-group")
+		defer consumer.Close()
+
+		log.Println("📡 Kafka Consumer started, waiting for events...")
+
+		consumer.Consume(context.Background(), func(event kafka.PointEvent) {
+			log.Printf("Invalidating cache due to event: %s (point: %s)", event.EventType, event.PointID)
+			pointsCache.InvalidateAll(context.Background())
+		})
+	}()
+	handlers.GlobalKafkaProducer = kafkaProducer
 
 	jm := auth.NewJWTManager(cfg.JwtSecret, 15*time.Minute)
 	r := router.NewRouter(jm, pool, rdb, pointsCache, kiosksCache)

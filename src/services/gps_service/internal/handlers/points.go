@@ -5,6 +5,7 @@ import (
 	"gps_service/internal/auth"
 	"gps_service/internal/cache"
 	"gps_service/internal/db"
+	"gps_service/internal/kafka"
 	"gps_service/internal/response"
 	"net/http"
 	"strconv"
@@ -87,6 +88,12 @@ func DeletePointHandler(pool *pgxpool.Pool, pointsCache *cache.PointsCache) http
 			response.WriteError(w, http.StatusInternalServerError, "failed to delete point")
 			return
 		}
+		if GlobalKafkaProducer != nil {
+			event := kafka.NewPointEvent("deleted", id)
+			if err := GlobalKafkaProducer.PublishPointEvent(r.Context(), event); err != nil {
+				log.Printf("Failed to send Kafka event: %v", err)
+			}
+		}
 		_ = pointsCache.InvalidateAll(r.Context())
 		response.WriteJSON(w, http.StatusOK, map[string]any{
 			"message": "deleted",
@@ -122,6 +129,13 @@ func UpdatePointHandler(pool *pgxpool.Pool, pointsCache *cache.PointsCache) http
 			response.WriteError(w, http.StatusInternalServerError, "failed to update point")
 			return
 		}
+		if GlobalKafkaProducer != nil {
+			event := kafka.NewPointEvent("updated", id)
+			if err := GlobalKafkaProducer.PublishPointEvent(r.Context(), event); err != nil {
+				log.Printf("Failed to send Kafka event: %v", err)
+			}
+		}
+
 		_ = pointsCache.InvalidateAll(r.Context())
 		response.WriteJSON(w, http.StatusOK, map[string]any{
 			"message": "updated",
@@ -163,6 +177,12 @@ func CreatePointHandler(pool *pgxpool.Pool, pointsCache *cache.PointsCache) http
 			log.Error().Err(err).Msg("failed to create point")
 			response.WriteError(w, http.StatusInternalServerError, "failed to create point")
 			return
+		}
+		if GlobalKafkaProducer != nil {
+			event := kafka.NewPointEvent("created", created.PointId)
+			if err := GlobalKafkaProducer.PublishPointEvent(r.Context(), event); err != nil {
+				log.Printf("Failed to send Kafka event: %v", err)
+			}
 		}
 		_ = pointsCache.InvalidateAll(r.Context())
 		response.WriteJSON(w, http.StatusCreated, map[string]any{
