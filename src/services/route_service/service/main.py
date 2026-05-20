@@ -34,21 +34,33 @@ from algorithms.base.bidirectional import BidirectionalDijkstraRouter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Глобальные переменные
 GRAPH = None
 COORDINATES = None
 ROUTER = None
-NODES_ARRAY = None   # numpy (N,2) array of [lat, lng] for nearest-node lookup
-NODE_IDS = None      # list of node IDs matching NODES_ARRAY rows
+NODES_ARRAY = None
+NODE_IDS = None
 GRAPH_INFO = {
     'nodes': 0,
     'edges': 0,
     'network_type': 'drive'
 }
-ALGORITHM_NAME = "dijkstra"
+ALGORITHM_NAME = os.environ.get("ROUTING_ALGORITHM", "dijkstra")
+IS_READY = False  # Флаг готовности сервиса
 
 
 def find_nearest_node(lat: float, lng: float) -> int:
     """Snap lat/lng to nearest OSM node using vectorized numpy search."""
+    if NODES_ARRAY is None or NODE_IDS is None:
+        raise HTTPException(status_code=503, detail="Graph not loaded yet")
+
+    # Проверка на корректность координат (примерные границы Москвы)
+    if not (55.2 <= lat <= 56.2 and 37.2 <= lng <= 37.9):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Coordinates ({lat}, {lng}) are outside Moscow area"
+        )
+
     diffs = NODES_ARRAY - np.array([lat, lng])
     idx = int(np.argmin((diffs * diffs).sum(axis=1)))
     return NODE_IDS[idx]
@@ -57,17 +69,26 @@ def find_nearest_node(lat: float, lng: float) -> int:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
-    global GRAPH, COORDINATES, ROUTER, GRAPH_INFO, NODES_ARRAY, NODE_IDS
+    global GRAPH, COORDINATES, ROUTER, GRAPH_INFO, NODES_ARRAY, NODE_IDS, IS_READY
 
     logger.info("="*50)
     logger.info("Starting Moscow Routing API")
     logger.info("="*50)
 
+    logger.info(f"Using algorithm: {ALGORITHM_NAME.upper()}")
     logger.info("Loading Moscow graph...")
+
     try:
         loader = MoscowGraphLoader(network_type='drive')
+
+        # Поддержка монтированного кэша
+        cache_dir = os.environ.get("GRAPH_CACHE_DIR", "/app/cache")
+        cache_file = os.path.join(cache_dir, 'moscow_graph_drive.pkl')
+
         GRAPH = loader.load_graph(
-            use_cache=True, cache_file='moscow_graph_drive.pkl')
+            use_cache=True, 
+            cache_file=cache_file
+        )
         COORDINATES = loader.get_coordinates()
 
         GRAPH_INFO['nodes'] = len(GRAPH)
@@ -96,8 +117,10 @@ async def lifespan(app: FastAPI):
         elif ALGORITHM_NAME == 'alt':
             ROUTER = ALTRouter(GRAPH, COORDINATES)
         else:
+            logger.warning(f"Unknown algorithm {ALGORITHM_NAME}, falling back to A*")
             ROUTER = AStarRouter(GRAPH, COORDINATES)
 
+        IS_READY = True
         logger.info(f"✅ Router initialized: {ALGORITHM_NAME.upper()}")
         logger.info("="*50)
         logger.info("API is ready!")
@@ -107,11 +130,14 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Failed to initialize: {e}")
         import traceback
         traceback.print_exc()
+        IS_READY = False
         raise
 
     yield
 
     logger.info("Shutting down API...")
+    IS_READY = False
+
 
 app = FastAPI(
     title="Moscow Routing API",
@@ -203,8 +229,6 @@ def build_geojson_route(ids: List[int]) -> Tuple[dict, float, int]:
 
     return geojson, total_distance, estimated_time
 
-# ==================== ЭНДПОЙНТЫ ====================
-
 
 @app.get("/")
 async def root():
@@ -219,7 +243,13 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - возвращает 200 только когда сервис полностью готов"""
+    if not IS_READY or GRAPH is None or ROUTER is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service is initializing, please wait"
+        )
+
     return {
         "status": "healthy",
         "graph_loaded": GRAPH is not None,
@@ -240,15 +270,15 @@ async def get_info():
         "algorithm": ALGORITHM_NAME,
         "heuristic": "Euclidean distance" if ALGORITHM_NAME == "astar" else "None",
         "city": "Moscow",
-        "status": "ready" if GRAPH else "loading"
+        "status": "ready" if IS_READY else "loading"
     }
 
 
 @app.get("/routing/v1/node/{node_id}")
 async def get_node_info(node_id: int):
     """Информация об узле"""
-    if GRAPH is None:
-        raise HTTPException(status_code=503, detail="Graph not loaded")
+    if GRAPH is None or not IS_READY:
+        raise HTTPException(status_code=503, detail="Service not ready")
 
     if node_id not in GRAPH:
         raise HTTPException(
@@ -279,30 +309,41 @@ async def get_route(request: RoutingRequest):
 
     logger.info(f"Route request: {len(request.waypoints)} waypoints")
 
-    if GRAPH is None:
-        raise HTTPException(status_code=503, detail="Graph not loaded yet")
+    if GRAPH is None or not IS_READY:
+        raise HTTPException(status_code=503, detail="Service not ready")
 
     if ROUTER is None:
         raise HTTPException(status_code=503, detail="Router not initialized")
 
+    # Валидация входных данных
+    if not request.waypoints or len(request.waypoints) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least 2 waypoints are required"
+        )
+
     try:
         node_ids = []
-        for wp in request.waypoints:
+        for idx, wp in enumerate(request.waypoints):
             try:
                 node_id = find_nearest_node(wp.lat, wp.lng)
-            except Exception:
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to snap waypoint {idx}: {e}")
                 raise HTTPException(
-                    status_code=422,
-                    detail="Point not found in graph"
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Failed to snap waypoint {idx} to graph: {str(e)}"
                 )
 
             if node_id is None or node_id not in GRAPH:
                 raise HTTPException(
-                    status_code=422,
-                    detail="Point not found in graph"
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Waypoint {idx} ({wp.lat}, {wp.lng}) not found in graph"
                 )
 
             node_ids.append(node_id)
+        
         logger.info(f"Snapped waypoints to OSM nodes: {node_ids}")
 
         geojson, total_distance, estimated_time = build_geojson_route(node_ids)
@@ -326,19 +367,13 @@ async def get_route(request: RoutingRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
-# ==================== ЗАПУСК ====================
 
 if __name__ == "__main__":
     import uvicorn
-    algorithm = os.environ.get("ROUTING_ALGORITHM", "astar")
-    if algorithm in ["dijkstra", "astar", "bidirectional", "ch", "alt"]:
-        ALGORITHM_NAME = algorithm
-        print(f"Using algorithm: {ALGORITHM_NAME}")
-
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=False,
         log_level="info"
     )

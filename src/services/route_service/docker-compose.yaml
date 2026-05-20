@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  routing-api:
+    build: .
+    container_name: moscow-routing-api
+    ports:
+      - "8080:8000"
+    environment:
+      - ROUTING_ALGORITHM=${ROUTING_ALGORITHM:-dijkstra}
+      - GRAPH_CACHE_DIR=/app/cache
+    volumes:
+      - ./cache:/app/cache:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Важно: граф грузится долго
+    restart: unless-stopped
+    networks:
+      - routing-network
+
+networks:
+  routing-network:
+    driver: bridge
