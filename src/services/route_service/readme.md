@@ -34,25 +34,26 @@
 | ALT | `alt` | A* с потенциалами Лэндиса-Хефнера | Быстрый, требует памяти |
 
 ## 📁 Структура проекта
-city_closer/
-├── route_service/
-│ ├── algorithms/
-│ │ ├── base/ # Базовые алгоритмы
-│ │ │ ├── a_star.py # A* алгоритм
-│ │ │ ├── bidirectional.py # Двунаправленный Дейкстра
-│ │ │ └── router.py # Базовый класс
-│ │ ├── shortest_path/ # Классические алгоритмы
-│ │ │ └── dijkstra.py # Алгоритм Дейкстры
-│ │ └── advanced/ # Продвинутые алгоритмы
-│ │ ├── alt.py # ALT алгоритм
-│ │ └── contraction_hierarchies.py # CH алгоритм
-│ └── service/
-│ ├── main.py # FastAPI приложение
-│ ├── graph_loader.py # Загрузчик графа
-│ ├── benchmark.py # Бенчмаркинг
-│ └── enums.py # Перечисления
-└── README.md
-
+```txt
+    city_closer/
+    ├── route_service/
+    │ ├── algorithms/
+    │ │ ├── base/ # Базовые алгоритмы
+    │ │ │ ├── a_star.py # A* алгоритм
+    │ │ │ ├── bidirectional.py # Двунаправленный Дейкстра
+    │ │ │ └── router.py # Базовый класс
+    │ │ ├── shortest_path/ # Классические алгоритмы
+    │ │ │ └── dijkstra.py # Алгоритм Дейкстры
+    │ │ └── advanced/ # Продвинутые алгоритмы
+    │ │ ├── alt.py # ALT алгоритм
+    │ │ └── contraction_hierarchies.py # CH алгоритм
+    │ └── service/
+    │ ├── main.py # FastAPI приложение
+    │ ├── graph_loader.py # Загрузчик графа
+    │ ├── benchmark.py # Бенчмаркинг
+    │ └── enums.py # Перечисления
+    └── README.md
+```
 
 ## 🚀 Установка и запуск
 ### Способ 1: Docker (рекомендуется для production)
@@ -65,7 +66,7 @@ city_closer/
     mkdir -p cache
 ```
 
-# Загрузка графа (займет 5-10 минут)
+#### 2. Загрузка графа (займет 5-10 минут)
 ```bash
     python -c "
         from service.graph_loader import MoscowGraphLoader
@@ -77,38 +78,40 @@ city_closer/
         print('Graph saved to cache/')
     "
 ```
-Запуск сервиса в докере
+
+#### 3. Запуск сервиса в докере
 ```bash
     docker-compose up -d
 ```
+### Способ 2: Локальный запуск (для разработки)
 
-### 1. Клонирование репозитория
+#### 1. Клонирование репозитория
 
 ```bash
     git clone <repository-url>
     cd src/services/route_service
 ```
 
-### 2. Создание виртуального окружения
+#### 2. Создание виртуального окружения
 ```bash
     python -m venv venv
     source venv/bin/activate  # Linux/Mac
     venv\Scripts\activate     # Windows
 ```
 
-### 3. Установка зависимостей
+#### 3. Установка зависимостей
 ```bash
     pip install -r requirements.txt
 ```
 
-### 4. Запуск сервера
+#### 4. Запуск сервера
 ```bash
     cd service
     uvicorn main:app --reload --port 8000
 ```
 
 
-### 5. Проверка работы
+#### 5. Проверка работы
 ```bash
     # Проверка статуса
     curl http://localhost:8000/
