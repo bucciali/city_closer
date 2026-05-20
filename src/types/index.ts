@@ -18,7 +18,6 @@ export interface POI {
   category?: POICategory
   distance?: number
   imageUrl?: string
-  tags?: string[]
 }
 
 export type POICategory =
