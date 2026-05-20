@@ -9,4 +9,7 @@ INSERT INTO point_types (name) VALUES
     ('cafe'),
     ('pharmacy'),
     ('park'),
-    ('other');
+    ('other'),
+    ('museum'),
+    ('food'),
+    ('landmark');
