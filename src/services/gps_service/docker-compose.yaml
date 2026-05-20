@@ -16,6 +16,32 @@ services:
       retries: 10
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gps_service-grafana-1
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      app:
+        condition: service_healthy
+
   redis:
     image: redis:7
     ports:
@@ -53,6 +79,13 @@ services:
       JWT_SECRET: "GPS_SERVICE_TEST_SECRET"
     ports:
       - "8080:8080"
+      - "50051:50051" 
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,3 +97,4 @@ services:
 
 volumes:
   postgres_data:
+  grafana_data:

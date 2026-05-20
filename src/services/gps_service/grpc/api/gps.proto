@@ -1,0 +1,245 @@
+syntax = "proto3";
+
+package gps;
+option go_package = "gps_service/grpc/api";
+
+//  СЕРВИС 
+
+service GPSService {
+  // ===== Публичные методы (без авторизации) =====
+  
+  // Health check
+  rpc Healthz(Empty) returns (HealthzResponse);
+  
+  // Поиск точек рядом
+  rpc GetPointsNearby(PointsNearbyRequest) returns (PointsNearbyResponse);
+  
+  // Получить все точки
+  rpc GetPoints(Empty) returns (GetPointsResponse);
+  
+  // Получить все киоски
+  rpc GetKiosks(Empty) returns (GetKiosksResponse);
+  
+  // Получить киоск по ID
+  rpc GetKioskById(GetKioskByIdRequest) returns (GetKioskByIdResponse);
+  
+  // Поиск
+  rpc Search(SearchRequest) returns (SearchResponse);
+  
+  // Пинг терминала
+  rpc TerminalPing(TerminalPingRequest) returns (TerminalPingResponse);
+  
+  //  Аутентификация 
+  
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  
+  //  Админ методы (требуют роль admin) 
+  
+  // Точки (CRUD)
+  rpc CreatePoint(CreatePointRequest) returns (CreatePointResponse);
+  rpc UpdatePoint(UpdatePointRequest) returns (UpdatePointResponse);
+  rpc DeletePoint(DeletePointRequest) returns (DeletePointResponse);
+  
+  // Киоски (CRUD)
+  rpc CreateKiosk(CreateKioskRequest) returns (CreateKioskResponse);
+  rpc UpdateKiosk(UpdateKioskRequest) returns (UpdateKioskResponse);
+  rpc DeleteKiosk(DeleteKioskRequest) returns (DeleteKioskResponse);
+}
+
+// СООБЩЕНИЯ (MESSAGES)
+
+// Пустой запрос
+message Empty {}
+
+// Health check
+message HealthzResponse {
+  string status = 1;  // "OK"
+}
+
+//  Точки
+
+message PointsNearbyRequest {
+  double lat = 1;
+  double lng = 2;
+  double radius = 3;
+}
+
+message PointsNearbyResponse {
+  repeated NearbyPoint points = 1;
+}
+
+message NearbyPoint {
+  string point_id = 1;
+  string name = 2;
+  optional string description = 3;
+  double latitude = 4;
+  double longitude = 5;
+  string category = 6;
+}
+
+message GetPointsResponse {
+  repeated Point points = 1;
+}
+
+message Point {
+  string point_id = 1;
+  string name = 2;
+  optional string description = 3;
+  double latitude = 4;
+  double longitude = 5;
+  string type_id = 6;
+  string created_by = 7;
+  string created_at = 8;
+}
+
+// Киоски 
+
+message GetKiosksResponse {
+  repeated Kiosk kiosks = 1;
+}
+
+message GetKioskByIdRequest {
+  string id = 1;
+}
+
+message GetKioskByIdResponse {
+  Kiosk kiosk = 1;
+}
+
+message Kiosk {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double latitude = 4;
+  double longitude = 5;
+  string created_at = 6;
+}
+
+// Поиск 
+
+message SearchRequest {
+  string q = 1;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+}
+
+message SearchResult {
+  string id = 1;
+  string name = 2;
+  string type = 3;  // "kiosk" или "poi"
+}
+
+// ===== Терминал =====
+
+message TerminalPingRequest {
+  string terminal_id = 1;
+  string location = 2;
+}
+
+message TerminalPingResponse {
+  string status = 1;
+  string terminal_id = 2;
+  string location = 3;
+}
+
+//  Аутентификация 
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  string token = 1;
+  string user_id = 2;
+  string email = 3;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  string token = 1;
+}
+
+// Админ: Точки 
+
+message CreatePointRequest {
+  string name = 1;
+  optional string description = 2;
+  double latitude = 3;
+  double longitude = 4;
+  string type_id = 5;
+}
+
+message CreatePointResponse {
+  Point point = 1;
+}
+
+message UpdatePointRequest {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  double latitude = 4;
+  double longitude = 5;
+  string type_id = 6;
+}
+
+message UpdatePointResponse {
+  string message = 1;
+}
+
+message DeletePointRequest {
+  string id = 1;
+}
+
+message DeletePointResponse {
+  string message = 1;
+}
+
+//Админ: Киоски
+
+message CreateKioskRequest {
+  string name = 1;
+  string description = 2;
+  double latitude = 3;
+  double longitude = 4;
+}
+
+message CreateKioskResponse {
+  Kiosk kiosk = 1;
+}
+
+message UpdateKioskRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double latitude = 4;
+  double longitude = 5;
+}
+
+message UpdateKioskResponse {
+  string message = 1;
+}
+
+message DeleteKioskRequest {
+  string id = 1;
+}
+
+message DeleteKioskResponse {
+  string message = 1;
+}
